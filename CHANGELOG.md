@@ -1,3 +1,21 @@
+## 1.5.0 (2021-04-23)
+
+#### :rocket: New Feature
+
+- 并行化执行任务
+- 添加异常重试机制
+
+#### :bug: Bug Fix
+
+- 任务失败时的错误处理
+- unhandled rejection 处理
+
+#### :house: Internal
+
+- 调整定时触发时间为 11 点前
+- 日志添加项目 banner
+- 仅在大于当前版本时提示更新
+
 ## 1.4.0 (2021-04-18)
 
 #### :rocket: New Feature
@@ -16,8 +34,7 @@
 
 #### :rocket: New Feature
 
-= 升级至 gundam API
-
+- 升级至 **gundam API**
 - 添加 Release 更新提醒
 - 添加 sync 同步副本命令
 

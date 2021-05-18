@@ -2,9 +2,11 @@
 
 # 🧧【美团】外卖神券天天领
 
-![workflow](https://img.shields.io/github/workflow/status/vv314/actions-mtz-coupons/%E9%A2%86%E7%BA%A2%E5%8C%85?label=%E9%A2%86%E7%BA%A2%E5%8C%85&logo=github%20actions&style=flat) ![last-commit](https://img.shields.io/github/last-commit/vv314/actions-mtz-coupons) ![release](https://img.shields.io/github/v/release/vv314/actions-mtz-coupons)
+![workflow](https://img.shields.io/github/workflow/status/vv314/actions-mtz-coupons/%E9%A2%86%E7%BA%A2%E5%8C%85?label=%E9%A2%86%E7%BA%A2%E5%8C%85&logo=github%20actions&style=flat) ![release](https://img.shields.io/github/v/release/vv314/actions-mtz-coupons) ![update](https://img.shields.io/github/last-commit/vv314/actions-mtz-coupons/main?label=update) ![fork](https://img.shields.io/github/forks/vv314/actions-mtz-coupons)
 
 外卖神券天天领，超值红包享不停；以自动化的方式领取美团红包。
+
+> ★ 多帐号支持，全村都能配上<br/>★ 并行化任务，数管齐下更有效率<br/>★ 异常重试，一次不行再来一次<br/>★ 多路消息通知，总有一个到达你<br/>★ Github Actions 部署，从未如此简单
 
 ## 📕 使用教程
 
@@ -24,8 +26,8 @@ token=Js3xxxxFyy_Aq-rOnxMte6vKPV4AAAAA6QwAADgqRBSfcmNqyuG8CQ7JDL7xxxxNGbfF7tPNV5
 
 1. Fork 源项目
    1. 访问 [actions-mtz-coupons](https://github.com/vv314/actions-mtz-coupons) 源仓库
-   2. 点击右上角 `Fork` 按钮
-   3. 点击右上角 `Star` 按钮 ;)
+   2. 点击右上角 `Star` 按钮 ;)
+   3. 点击右上角 `Fork` 按钮
 2. 添加 Actions secrets
    1. 导航到 Fork 后的仓库主页面
    2. 在仓库菜单栏中，点击 `⚙️Settings`（设置）
@@ -43,13 +45,13 @@ _Fork 后的项目可执行 `npm run sync` 同步上游更新，详细参考【�
 当配置 `String` 类型时，值为 cookie 中提取的 token 信息；
 当配置 `JSON` 对象类型时，应包含以下属性：
 
-| 属性名  | 类型   | 默认值 | 必填 | 说明                     |
-| ------- | ------ | ------ | ---- | ------------------------ |
-| token   | string |        | 是   | 账号 token               |
-| alias   | string |        | 否   | 账号别名，便于区分多账户 |
-| qywxUid | string |        | 否   | 企业微信通知，用户 id    |
-| tgUid   | string |        | 否   | Telegram 通知，用户 id   |
-| barkKey | string |        | 否   | Bark 通知，推送 Key      |
+| 属性名  | 类型   | 默认值    | 必填 | 说明                     |
+| ------- | ------ | --------- | ---- | ------------------------ |
+| token   | string |           | 是   | 账号 token               |
+| alias   | string | token\<i> | 否   | 账号别名，便于区分多账户 |
+| qywxUid | string |           | 否   | 企业微信通知，用户 id    |
+| tgUid   | string |           | 否   | Telegram 通知，用户 id   |
+| barkKey | string |           | 否   | Bark 通知，推送 Key      |
 
 _注意：企业微信通知需配置 `QYWX_SEND_CONF` Secret，Telegram 通知需配置 `TG_BOT_TOKEN` Secret，详见【消息通知】章节_
 

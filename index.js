@@ -4,7 +4,13 @@ if (process.env.LOCAL_TEST) {
   require('dotenv').config()
 }
 
+process.on('unhandledRejection', err => {
+  throw err
+})
+
+const pLimit = require('p-limit')
 const Notifier = require('./lib/Notifier')
+const { version } = require('./package.json')
 const parseToken = require('./lib/parse-token')
 const updateNotifier = require('./lib/update-notifier')
 const { getCoupons, getRule } = require('./lib/coupons')
@@ -19,21 +25,29 @@ const notifier = new Notifier({
     userId: process.env.TG_USER_ID
   }
 })
-const notifyTitle = '外卖神券天天领😋'
-const notify = notifier.notify.bind(notifier, notifyTitle)
-let userNotifyResult = []
 
-function printResult(data) {
-  console.log('\n—————— 领取结果 ——————\n')
-  const coupons = data.coupons.map(item => {
-    console.log(item)
+const NOTIFY_TITLE = '外卖神券天天领😋'
+const MAX_RETRY_COUNT = 2
 
-    return `- ￥${item.amount}（${item.amountLimit}）`
-  })
+console.log(`
+───────────────────────────────────────
+ actions-mtwm-coupons
+ 外卖神券天天领
+────────────────────────
 
-  console.log(`\n红包已放入账号：${data.phone}`)
+ Ver. ${version}
 
-  return coupons.join('\n')
+ Github @vv314`)
+
+async function printRule() {
+  const rule = await getRule()
+
+  if (rule.length) {
+    console.log('—————————— 活动规则 ——————————\n')
+    rule.forEach((item, i) => {
+      console.log(`${i + 1}. ${item}`)
+    })
+  }
 }
 
 function stringifyCoupons(coupons) {
@@ -48,7 +62,7 @@ function sendUserNotify(msg, account) {
 
   if (account.barkKey) {
     const qywxRes = notifier
-      .sendBark(notifyTitle, msg, { key: account.barkKey })
+      .sendBark(NOTIFY_TITLE, msg, { key: account.barkKey })
       .then(res => `@${user} ${res.msg}`)
 
     result.push(qywxRes)
@@ -56,7 +70,7 @@ function sendUserNotify(msg, account) {
 
   if (account.qywxUid) {
     const qywxRes = notifier
-      .sendWorkWechat(notifyTitle, msg, {
+      .sendWorkWechat(NOTIFY_TITLE, msg, {
         uid: account.qywxUid
       })
       .then(res => `@${user} ${res.msg}`)
@@ -66,7 +80,7 @@ function sendUserNotify(msg, account) {
 
   if (account.tgUid) {
     const tgRes = notifier
-      .sendTelegram(notifyTitle, msg, { uid: account.tgUid })
+      .sendTelegram(NOTIFY_TITLE, msg, { uid: account.tgUid })
       .then(res => `@${user} ${res.msg}`)
 
     result.push(tgRes)
@@ -75,83 +89,82 @@ function sendUserNotify(msg, account) {
   return result.map(p => p.then(r => `[用户通知] ${r}`))
 }
 
-async function runTask(account) {
-  const couponsInfo = await getCoupons(account.token)
-  const { code, data, msg } = couponsInfo
-
-  if (code == 0) {
-    console.log(...data.coupons)
-    console.log(`\n红包已放入账号：${data.phone}`)
-    console.log(`\n🎉 领取成功！`)
-
-    const message = stringifyCoupons(data.coupons)
-    const pushRes = sendUserNotify(message, account)
-
-    userNotifyResult = userNotifyResult.concat(pushRes)
-
-    return { user: account.alias, data: message }
-  }
-
-  const errMsg = `领取失败: ${msg}`
-
-  console.log('😦', errMsg)
-  notify(errMsg, { link: data.actUrl })
-
-  return errMsg
-}
-
-async function printRule() {
-  const rule = await getRule()
-
-  if (rule.length) {
-    console.log('—————————— 活动规则 ——————————\n')
-    rule.forEach((item, i) => {
-      console.log(`${i + 1}. ${item}`)
-    })
-  }
-}
-
-async function runTaskList(tokenList) {
-  const total = tokenList.length
-  const result = []
-
-  for (let i = 0; i < total; i++) {
-    const account = tokenList[i]
-
-    console.log(
-      `\n—————————— [${i + 1}/${total}] 账号: ${account.alias} ——————————\n`
-    )
-    result.push(await runTask(account))
-  }
-
-  return result
-}
-
-function sendNotify(tasks) {
+function sendGlobalNotify(tasks) {
   const message = tasks.map(t => `账号 ${t.user}:\n${t.data}`).join('\n\n')
 
-  return notify(message).map(p => p.then(res => `[全局通知] ${res.msg}`))
+  return notifier
+    .notify(NOTIFY_TITLE, message)
+    .map(p => p.then(res => `[全局通知] ${res.msg}`))
 }
 
-async function printNotifyResult(pushRes) {
-  const notifyResult = [].concat(userNotifyResult, pushRes)
+async function doJob(account, progress) {
+  const res = await getCoupons(account.token, MAX_RETRY_COUNT)
 
-  if (notifyResult.length) {
-    console.log(`\n—————————— 推送通知 ——————————\n`)
+  console.log(
+    `\n────────── [${progress.mark()}] 账号: ${account.alias} ──────────\n`
+  )
 
-    // 异步打印结果
-    notifyResult.forEach(p => p.then(res => console.log(res)))
+  if (res.code != 0) {
+    console.log(res.msg, res.error)
+    res.retryTimes && console.log(`重试: ${res.retryTimes} 次`)
+    console.log('\n😦 领取失败')
+
+    return {
+      user: account.alias,
+      data: `领取失败: ${res.msg}`,
+      pushInfo: []
+    }
   }
 
-  return Promise.all(notifyResult)
+  const { coupons, phone } = res.data
+
+  console.log(...coupons)
+  console.log(`\n红包已放入账号：${phone}`)
+  console.log(`\n🎉 领取成功！`)
+
+  const message = stringifyCoupons(coupons)
+  const pushInfo = sendUserNotify(message, account)
+
+  return { user: account.alias, data: message, pushInfo }
+}
+
+async function runTaskQueue(tokenList) {
+  const asyncPool = pLimit(5)
+  const progress = {
+    count: 0,
+    mark() {
+      return `${++this.count}/${tokenList.length}`
+    }
+  }
+
+  return Promise.all(
+    tokenList.map(account => asyncPool(doJob, account, progress))
+  )
+}
+
+async function printNotifyResult(pushInfo) {
+  if (pushInfo.length) {
+    console.log(`\n────────── 推送通知 ──────────\n`)
+
+    // 异步打印结果
+    pushInfo.forEach(p => p.then(res => console.log(res)))
+  }
+
+  return Promise.all(pushInfo)
 }
 
 async function checkUpdate() {
-  const message = await updateNotifier()
+  let message
+
+  try {
+    message = await updateNotifier()
+  } catch (e) {
+    console.log('\n', e)
+  }
 
   if (!message) return
 
-  console.log(`\n—————————— 更新提醒 ——————————\n`)
+  console.log(`\n────────── 更新提醒 ──────────\n`)
   console.log(message)
 }
 
@@ -159,10 +172,13 @@ async function main() {
   await printRule()
 
   const tokens = parseToken(TOKEN)
-  const tasks = await runTaskList(tokens)
-  const pushRes = sendNotify(tasks)
+  const tasks = await runTaskQueue(tokens)
 
-  await printNotifyResult(pushRes)
+  const userPushInfo = tasks.map(info => info.pushInfo).flat()
+  const globalPushInfo = sendGlobalNotify(tasks)
+
+  // 打印通知结果，用户通知优先
+  await printNotifyResult(userPushInfo.concat(globalPushInfo))
 
   checkUpdate()
 }
